@@ -114,3 +114,7 @@ If you use OPI in your research, please consider citing the following:
 
 For issues or bug reports please create an [issue](https://www.github.com/faccts/opi/issues) on GitHub.
 For commercial inquiries contact us directly at [info@faccts.de](mailto:info@faccts.de).
+
+## 中文文档
+
+完整中文手册源码、目录说明及 HTML 构建方法见 [docs_zh/README.md](docs_zh/README.md)。

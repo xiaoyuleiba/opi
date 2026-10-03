@@ -1,0 +1,5 @@
+_build/
+.venv/
+contents/api/
+contents/scripts/*.sha256
+__pycache__/

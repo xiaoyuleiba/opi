@@ -1,0 +1,33 @@
+{
+  "upstream_repository": "https://github.com/faccts/opi",
+  "upstream_commit": "ab7cad88803cde630ddfee07dfcc269d2d5920f4",
+  "source_directory": "docs",
+  "translation_directory": "docs_zh",
+  "language": "zh_CN",
+  "markdown_documents": 6,
+  "notebooks": 19,
+  "api_translation_entries": 2463,
+  "notebook_execution": "off",
+  "preserved": [
+    "relative source paths",
+    "code cells",
+    "notebook outputs",
+    "metadata",
+    "mathematics",
+    "code blocks",
+    "scripts",
+    "images",
+    "static assets",
+    "templates",
+    "citations"
+  ],
+  "navigation_adjustments": [
+    "index.md: API link points to contents/api/index",
+    "index.md: tutorial card points to local how_to_opi.ipynb"
+  ],
+  "formatting_adjustments": [
+    "First horizontal rule after title omitted in two community notebooks to satisfy docutils transition rules",
+    "Generated API docstrings: add missing list separation and parameter underline; render FCIDUMP example as a reStructuredText code block",
+    "Local AutoAPI template headings translated into Chinese"
+  ]
+}
