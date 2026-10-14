@@ -1,0 +1,22 @@
+{
+  "source_repository": "https://github.com/xiaoyuleiba/opi",
+  "source_commit": "f96cf6eaa05428ca1d1b7700c5bcbd2d55414767",
+  "source_directory": "examples",
+  "translation_directory": "examples_zh",
+  "language": "zh_CN",
+  "example_scripts": 58,
+  "resource_files": 70,
+  "translated": [
+    "README.md",
+    "Python comments",
+    "module docstrings"
+  ],
+  "preserved": [
+    "file names and directory hierarchy",
+    "executable Python code",
+    "runtime strings and data keys",
+    "formulas, inline code and reference URLs",
+    "input structures and existing calculation results"
+  ],
+  "validation": "python3 docs_zh/_tools/check_examples_translation.py"
+}

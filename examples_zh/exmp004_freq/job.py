@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+
+import shutil
+import sys
+from pathlib import Path
+
+from opi.core import Calculator
+from opi.input.simple_keywords import (
+    BasisSet,
+    Dft,
+    Scf,
+    Task,
+)
+from opi.input.structures import Structure
+from opi.output.core import Output
+from opi.output.ir_mode import IrMode
+
+
+def run_exmp004(
+    structure: Structure | None = None, working_dir: Path | None = Path("RUN")
+) -> Output:
+    # > 重新创建工作目录
+    shutil.rmtree(working_dir, ignore_errors=True)
+    working_dir.mkdir()
+
+    # > 如未给定结构，则从 inp.xyz 读取
+    if structure is None:
+        structure = Structure.from_xyz("inp.xyz")
+
+    calc = Calculator(basename="job", working_dir=working_dir)
+    calc.structure = structure
+    calc.input.add_simple_keywords(Scf.NOAUTOSTART, BasisSet.DEF2_SVP, Dft.TPSS, Task.FREQ)
+    calc.input.ncores = 4
+
+    calc.write_input()
+    calc.run()
+
+    output = calc.get_output()
+    if not output.terminated_normally():
+        print(f"ORCA calculation failed, see output file: {output.get_outfile()}")
+        print(output.error_message())
+        sys.exit(1)
+    # << IF 语句结束
+
+    # > 解析 JSON 文件
+    output.parse()
+
+    ir_dict = output.get_ir()
+
+    # > 输出红外数据
+    print(IrMode.header())
+    for ir_mode in ir_dict.values():
+        print(ir_mode)
+
+    ngeoms = len(output.results_properties.geometries)
+    print("N GEOMETRIES")
+    print(ngeoms)
+    print("FINAL SINGLE POINT ENERGY")
+    print(output.get_final_energy())
+    print("Temperature [K]")
+    print(output.results_properties.geometries[0].thermochemistry_energies[0].temperature)
+    print("Final Gibbs free energy")
+    print(output.get_free_energy())
+    print("Zero-point energy")
+    print(output.get_zpe())
+    print("Final enthalpy H")
+    print(output.get_enthalpy())
+    print("Final entropy S")
+    print(output.get_entropy())
+    print("G-E(el)")
+    print(output.get_free_energy_delta())
+    print("Is PES minimum")
+    print(output.is_pes_minimum())
+    return output
+
+
+if __name__ == "__main__":
+    run_exmp004()
+

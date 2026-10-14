@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import shutil
+import sys
+from pathlib import Path
+
+from opi.core import Calculator
+from opi.input.blocks import BlockRocis
+from opi.input.simple_keywords import AuxBasisSet, BasisSet, ShellType
+from opi.input.structures import Structure
+from opi.output.core import Output
+
+
+def run_exmp017(
+    structure: Structure | None = None, working_dir: Path | None = Path("RUN")
+) -> Output:
+    # > 重新创建工作目录
+    shutil.rmtree(working_dir, ignore_errors=True)
+    working_dir.mkdir()
+
+    # > 如未给定结构，则从 inp.xyz 读取
+    if structure is None:
+        structure = Structure.from_xyz("inp.xyz")
+
+    calc = Calculator(basename="job", working_dir=working_dir)
+    calc.structure = structure
+    calc.structure.charge = -1
+    calc.structure.multiplicity = 2
+
+    calc.input.add_simple_keywords(
+        ShellType.ROHF,
+        BasisSet.DEF2_SVP,
+        AuxBasisSet.DEF2_SVP_C,
+        AuxBasisSet.DEF2_J,
+    )
+
+    calc.input.add_blocks(
+        BlockRocis(
+            nroots=6,
+            maxdim=5,
+            etol=0.000001,
+            rtol=0.000001,
+            maxiter=35,
+            nguessmat=512,
+            docd=True,
+        )
+    )
+
+    calc.write_input()
+    calc.run()
+
+    output = calc.get_output()
+    if not output.terminated_normally():
+        print(f"ORCA calculation failed, see output file: {output.get_outfile()}")
+        print(output.error_message())
+        sys.exit(1)
+    # << IF 语句结束
+
+    # > 解析 JSON 文件
+    output.parse()
+
+    # > 输出 S2 值
+    if s2_result := output.get_s2():
+        s2, ideal_s2 = s2_result
+        print(f"expectation S2: {s2}, ideal S**2: {ideal_s2}")
+    else:
+        print(f"Could not retrieve multiplicitiy from ORCA calculation: {output.get_outfile()}")
+    return output
+
+
+if __name__ == "__main__":
+    run_exmp017()
+

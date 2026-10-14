@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+
+import shutil
+import sys
+from pathlib import Path
+
+from opi.core import Calculator
+from opi.input.simple_keywords import BasisSet, Dft, Scf, Task
+from opi.input.structures import Structure
+from opi.output.core import Output
+
+
+def run_exmp035(
+    structure: Structure | None = None, working_dir: Path | None = Path("RUN")
+) -> Output:
+    # > 重新创建工作目录
+    shutil.rmtree(working_dir, ignore_errors=True)
+    working_dir.mkdir()
+
+    # > 如未给定结构，则从 inp.xyz 读取
+    if structure is None:
+        structure = Structure.from_xyz("inp.xyz")
+
+    calc = Calculator(basename="job", working_dir=working_dir)
+    calc.structure = structure
+    calc.charge = 1
+    calc.multiplicity = 2
+    calc.input.add_simple_keywords(
+        Scf.NOAUTOSTART,
+        Dft.TPSS,
+        BasisSet.DEF2_SVP,
+        Task.SP,
+    )
+
+    calc.write_input()
+    calc.run()
+
+    output = calc.get_output()
+    if not output.terminated_normally():
+        print(f"ORCA calculation failed, see output file: {output.get_outfile()}")
+        print(output.error_message())
+        sys.exit(1)
+    # << IF 语句结束
+
+    # > 解析 JSON 文件
+    output.parse()
+
+    # 检查 SCF 是否收敛
+    if output.scf_converged():
+        print("SCF CONVERGED")
+    else:
+        print("SCF DID NOT CONVERGE")
+        sys.exit(1)
+
+    print("FINAL SINGLE POINT ENERGY")
+    print(output.get_final_energy())
+
+    # 使用 orca_plot 绘制第 5 号分子轨道、density 和 spin_density
+    mo_5 = output.plot_mo(5)
+    density = output.plot_density()
+    spin_density = output.plot_spin_density()
+
+    # 输出 Cube 文件的路径
+    print(mo_5)
+    print(density)
+    print(spin_density)
+
+    # > 将分子轨道逐行保存到工作目录
+    with open(working_dir / f"{mo_5.path.stem}.from_iterator.cube", "w") as file:
+        for line in mo_5:
+            file.write(line)
+
+    return output
+
+
+if __name__ == "__main__":
+    run_exmp035()
+
