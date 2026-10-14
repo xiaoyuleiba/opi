@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # How to OPI &ndash; A First Example
+# # OPI 使用入门：第一个示例
 # 
-# This tutorial demonstrates the basic use of ORCA together with the ORCA python interface (OPI). As an example, we will simply compute the energy of a water molecule. Therefore, we will write a script that performs the OPI calculation and access the results. Both can be done with OPI.
+# 本教程演示如何将 ORCA 与 ORCA Python 接口（OPI）配合使用。以水分子能量计算为例，编写脚本执行 OPI 计算并访问结果；这两项操作均可通过 OPI 完成。
 # 
-# In this notebook we will:
-# 1.  Import the required python dependencies.
-# 2.  Define a working directory.
-# 3.  Set up the input structure.
-# 4.  Define the calculation settings.
-# 5.  Perform the ORCA calculation.
-# 6.  Check for proper termination and convergence.
-# 7.  Process the results.
+# 本 Notebook 将：
+# 1. 导入所需 Python 依赖。
+# 2. 定义工作目录。
+# 3. 设置输入结构。
+# 4. 定义计算设置。
+# 5. 执行 ORCA 计算。
+# 6. 检查正常终止与收敛。
+# 7. 处理结果。
 
-# ## Step 1: Import Dependencies
+# ## 步骤 1：导入依赖
 # 
-# The first thing to do for using OPI is to import the modules needed. We additionally import also the modules for visualization like `py3Dmol`. For this, it might be necessary to install `py3Dmol` into your OPI `venv` (e.g., by activating the `.venv` and using `uv pip install py3Dmol`).
+# 使用 OPI 时，首先导入所需模块。此外，还导入 `py3Dmol` 等可视化模块。可能需要将 `py3Dmol` 安装到 OPI 的 `venv` 中，例如激活 `.venv` 后运行 `uv pip install py3Dmol`。
 
 # In[1]:
 
@@ -24,39 +24,39 @@
 from pathlib import Path
 import shutil
 
-# > OPI imports for performing ORCA calculations and reading output
+# > 导入用于执行 ORCA 计算和读取输出的 OPI 模块
 from opi.core import Calculator
 from opi.output.core import Output
 from opi.input.simple_keywords import Dft, Task
 from opi.input.structures.structure import Structure
 
-# > for visualization of molecules
+# > 用于分子可视化
 import py3Dmol
 
 
-# ## Step 2: Working Directory
+# ## 步骤 2：工作目录
 # 
-# When working with OPI, it is always a good idea to define a subfolder in which the actual ORCA calculations will take place. In this case, we set up a `RUN` directory
+# 使用 OPI 时，建议定义一个子目录来存放实际 ORCA 计算。本例创建 `RUN` 目录。
 
 # In[2]:
 
 
-# > Calculation is performed in `RUN`
+# > 在 `RUN` 中执行计算
 working_dir = Path("RUN")
-# > The `working_dir`is automatically (re-)created
+# > 自动创建或重新创建 `working_dir`
 shutil.rmtree(working_dir, ignore_errors=True)
 working_dir.mkdir()
 
 
-# ## Step 3: Setup the Input Structure
+# ## 步骤 3：设置输入结构
 # 
-# We define the structure with Cartesian coordinates in angstrom and visualize it:
+# 以埃为单位定义结构的笛卡尔坐标，并将其可视化：
 # 
 
 # In[3]:
 
 
-# > Define cartesian coordinates in angstrom as python string 
+# > 将以 angstrom 为单位的笛卡尔坐标定义为 Python 字符串
 xyz_data = """\
 3
 
@@ -64,65 +64,65 @@ O      0.00000   -0.00000    0.00000
 H      0.00000    0.96899    0.00000
 H      0.93966   -0.23409    0.03434\n
 """
-# > Visualize the input structure
+# > 可视化输入结构
 view = py3Dmol.view(width=400, height=400)
 view.addModel(xyz_data, 'xyz')
 view.setStyle({}, {'stick': {}, 'sphere': {'scale': 0.3}})
 view.zoomTo()
 view.show()
 
-# > Write the input structure to a file
+# > 将输入结构写入文件
 with open(working_dir / "struc.xyz","w") as f:
     f.write(xyz_data)
-# > Read structure into object
+# > 将结构读入对象
 structure = Structure.from_xyz(working_dir / "struc.xyz")
 
 
-# ## Step 4: Define the Calculation Settings
-# Next, we have to define the settings used in the ORCA optimization. This can be done by defining a calculator and adding simple keywords to it:
+# ## 步骤 4：定义计算设置
+# 接下来定义 ORCA 优化使用的设置。可以创建一个 calculator 对象，并向其添加简单关键词：
 
 # In[4]:
 
 
 def setup_calc(basename : str, working_dir: Path, structure: Structure, ncores: int = 1) -> Calculator:
-    # > Set up a Calculator object, the basename for the ORCA calculation is also set
+    # > 设置 Calculator 对象，同时设置 ORCA 计算的基本名称
     calc = Calculator(basename=basename, working_dir=working_dir)
-    # > Assign structure to calculator
+    # > 将结构赋给计算器
     calc.structure = structure
 
-    # Define a level of theory: we use r2SCAN-3c for geometry optimization
+    # 定义理论水平：使用 r2SCAN-3c 进行几何优化
     sk_list = [
-        Dft.R2SCAN_3C, # > r2SCAN-3c method (Comes with a predefined basis set)
-        Task.SP # > Perform the singlepoint
+        Dft.R2SCAN_3C, # > r2SCAN-3c 方法（附带预定义基组）
+        Task.SP # > 执行单点计算
     ]
 
-    # > Use simple keywords in calculator
+    # > 在计算器中使用简单关键词
     calc.input.add_simple_keywords(*sk_list)
 
-    # > Define number of CPUs for the calcualtion
-    calc.input.ncores = ncores # > CPUs for this ORCA run (default: 1)
+    # > 定义计算使用的 CPU 数量
+    calc.input.ncores = ncores # > 本次 ORCA 计算使用的 CPU 数量（默认值：1）
 
     return calc
 
 calc = setup_calc("single_point", working_dir=working_dir, structure=structure)
 
 
-# ## Step 5: Perform the Calculation
+# ## 步骤 5：执行计算
 # 
-# To perform the single-point calculation, we have to write the input in ORCA format first, and then run the job by using the `run()` function of the calculator class. The output of ORCA can be written to the calculator with its `get_output()` function.
+# 执行单点计算时，先将输入写成 ORCA 格式，再使用 calculator 类的 `run()` 函数运行作业。可通过其 `get_output()` 函数将 ORCA 输出写入 calculator 对象。
 
 # In[5]:
 
 
 def run_calc(calc: Calculator) -> Output:
-    # > Write the ORCA input file
+    # > 写出 ORCA 输入文件
     calc.write_input()
-    # > Run the ORCA calculation
+    # > 运行 ORCA 计算
     print("Running ORCA calculation ...", end="")
     calc.run()
     print("   Done")
 
-    # > Get the output object
+    # > 获取输出对象
     output = calc.get_output()
 
     return output
@@ -130,23 +130,23 @@ def run_calc(calc: Calculator) -> Output:
 output = run_calc(calc)
 
 
-# ## Step 6: Check for Proper Termination and Convergence
-# When performing automated computations, a termination and convergence check should always be included. A simple check could look like:
+# ## 步骤 6：检查正常终止与收敛
+# 执行自动化计算时，应始终检查是否正常终止和收敛。简单检查示例如下：
 
 # In[6]:
 
 
 def check_and_parse_output(output: Output):
-    # > Check for proper termination of ORCA
+    # > 检查 ORCA 是否正常终止
     status = output.terminated_normally()
     if not status:
-        # > ORCA did not terminate normally
+        # > ORCA 未正常终止
         raise RuntimeError("ORCA did not terminate normally. Please check RUN/single_point.out")
     else:
-        # > ORCA did terminate normally so we can parse the output
+        # > ORCA 已正常终止，可以解析输出
         output.parse()
 
-    # Now check for convergence of the SCF
+    # 现在检查 SCF 是否收敛
     if output.results_properties.geometries[0].single_point_data.converged:
         print("SCF CONVERGED")
     else:
@@ -155,19 +155,20 @@ def check_and_parse_output(output: Output):
 check_and_parse_output(output)
 
 
-# ## Step 7: Access the Results
-# After a successful calculation, we can access the resulting properties. They are generally available via the `output` object:
+# ## 步骤 7：访问结果
+# 计算成功后，可以访问所得性质。通常可通过 `output` 对象获取：
 
 # In[7]:
 
 
-# > Total energy in Hartee
+# > 以 Hartree 为单位的总能量
 Etot = output.results_properties.geometries[0].single_point_data.finalenergy
 
-# > Print total energy
+# > 输出总能量
 print("Final energy in Hartee: ",Etot)
 
 
-# ## Summary
+# ## 小结
 # 
-# In this notebook we demonstrated how to perform a DFT single point energy calculation with the ORCA Python Interface (OPI). 
+# 本 Notebook 演示了如何使用 ORCA Python 接口（OPI）执行 DFT 单点能计算。
+

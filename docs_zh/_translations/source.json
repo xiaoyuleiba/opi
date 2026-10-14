@@ -6,6 +6,12 @@
   "language": "zh_CN",
   "markdown_documents": 6,
   "notebooks": 19,
+  "translated_scripts": 14,
+  "script_translation_scope": [
+    "tutorial comments",
+    "inline comments",
+    "function docstrings"
+  ],
   "api_translation_entries": 2463,
   "notebook_execution": "off",
   "preserved": [
@@ -15,7 +21,7 @@
     "metadata",
     "mathematics",
     "code blocks",
-    "scripts",
+    "script executable code and runtime strings",
     "images",
     "static assets",
     "templates",
@@ -31,3 +37,4 @@
     "Local AutoAPI template headings translated into Chinese"
   ]
 }
+

@@ -8,29 +8,29 @@ from opi.input.blocks import BlockMdci
 
 
 def check_and_parse_output(output: Output) -> None:
-    # > Check for proper termination of ORCA
+    # > 检查 ORCA 是否正常终止
     status = output.terminated_normally()
     if not status:
-        # > ORCA did not terminate normally
+        # > ORCA 未正常终止
         raise RuntimeError(f"ORCA did not terminate normally, see output file: {output.get_outfile()}")
     else:
-        # > ORCA did terminate normally so we can parse the output
+        # > ORCA 已正常终止，可以解析输出
         output.parse()
 
-    # Now check for convergence of the SCF
+    # 现在检查 SCF 是否收敛
     if not output.results_properties.geometries[0].single_point_data.converged:
         raise RuntimeError("SCF DID NOT CONVERGE")
 
 def extrapolation_cps_cbs(structure: Structure, basename : str = "job", working_dir: Path = Path("RUN"), charge = 0, mult = 1) -> pd.DataFrame:
-    # > Task 1: DLPNO-CCSD(T1)/aug-cc-pVTZ with TCutPNO = 1E-06
-    # > Create a Calculator object for ORCA input generation and execution
+    # > 任务 1：DLPNO-CCSD(T1)/aug-cc-pVTZ，TCutPNO = 1E-06
+    # > 创建用于生成 ORCA 输入并执行计算的 Calculator 对象
     calc = Calculator(basename=f"{basename}_1", working_dir=working_dir)
 
     calc.structure = structure
     calc.structure.multiplicity = mult
     calc.structure.charge = charge
 
-    # > Add calculation keywords and blocks
+    # > 添加计算关键词和输入块
     calc.input.add_simple_keywords(
         Wft.DLPNO_CCSD_T1,
         BasisSet.AUG_CC_PVTZ,
@@ -43,15 +43,15 @@ def extrapolation_cps_cbs(structure: Structure, basename : str = "job", working_
     )
     calc.input.add_arbitrary_string('%BASIS auxc "autoaux" autoauxlmax true End')
 
-    # > Write the ORCA input file
+    # > 写出 ORCA 输入文件
     calc.write_input()
-    # > Run the ORCA calculation
+    # > 运行 ORCA 计算
     calc.run()
-    # > Get the output object
+    # > 获取输出对象
     output_1 = calc.get_output()
     check_and_parse_output(output_1)
 
-    # > Task 2: DLPNO-CCSD(T1)/aug-cc-pVTZ with TCutPNO = 1E-07
+    # > 任务 2：DLPNO-CCSD(T1)/aug-cc-pVTZ，TCutPNO = 1E-07
     calc = Calculator(basename=f"{basename}_2", working_dir=working_dir)
     calc.structure = structure
     calc.structure.multiplicity = mult
@@ -72,7 +72,7 @@ def extrapolation_cps_cbs(structure: Structure, basename : str = "job", working_
     output_2 = calc.get_output()
     check_and_parse_output(output_2)
 
-    # > Task 3: DLPNO-CCSD(T1)/aug-cc-pVQZ with TCutPNO = 1E-06
+    # > 任务 3：DLPNO-CCSD(T1)/aug-cc-pVQZ，TCutPNO = 1E-06
     calc = Calculator(basename=f"{basename}_3", working_dir=working_dir)
     calc.structure = structure
     calc.structure.multiplicity = mult
@@ -93,7 +93,7 @@ def extrapolation_cps_cbs(structure: Structure, basename : str = "job", working_
     output_3 = calc.get_output()
     check_and_parse_output(output_3)
 
-    # > Task 4: DLPNO-CCSD(T1)/aug-cc-pVQZ with TCutPNO = 1E-07
+    # > 任务 4：DLPNO-CCSD(T1)/aug-cc-pVQZ，TCutPNO = 1E-07
     calc = Calculator(basename=f"{basename}_4", working_dir=working_dir)
     calc.structure = structure
     calc.structure.multiplicity = mult
@@ -166,8 +166,8 @@ def extrapolation_cps_cbs(structure: Structure, basename : str = "job", working_
     return df
 
 if __name__ == "__main__":
-    # > Create a working directory and XYZ file
-    # > You can replace everything up to the next comment with your own directory or file
+    # > 创建工作目录和 XYZ 文件
+    # > 可将此处至下一条注释之前的内容替换为自己的目录或文件
     working_dir = Path("RUN")
     working_dir.mkdir(exist_ok=True)
 
@@ -182,14 +182,14 @@ if __name__ == "__main__":
     with open(xyz_file, "w") as f:
         f.write(xyz_data)
 
-    # > Load the molecular structure from XYZ file
+    # > 从 XYZ 文件加载分子结构
     structure = Structure.from_xyz(xyz_file)
 
-    # > Define a basename for the calculation files
+    # > 定义计算文件的基本名称
     basename = "extrapolate_CPS_CBS"
 
-    # > Perform ORCA calculations for DLPNO-CCSD(T1) CPS + CBS extrapolation and extrapolate
+    # > 执行用于 DLPNO-CCSD(T1) CPS + CBS 外推的 ORCA 计算并进行外推
     df = extrapolation_cps_cbs(structure, basename, working_dir)
 
-    # > Print the results
+    # > 输出结果
     print(df)

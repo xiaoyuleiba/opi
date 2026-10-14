@@ -1,31 +1,31 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # CovaLED Analysis
+# # CovaLED 分析
 # 
-# This tutorial demonstrates how to use ORCA together with the ORCA python interface (OPI) to perform a **[Local Energy Decomposition (LED)](https://doi.org/10.1021/acs.jctc.6b00523)** analysis to decompose the interaction energy of a non-covalent host-guest complex. The subsystems are decomposed into fragments bound by covalent bonds which is possible due to the CovaLED. Additionally, post-processing for the **[fragment-pairwise LED (fp-LED)](https://doi.org/10.1002/anie.202421922)** is performed, which allows the decomposition of interaction energies in exclusively pair-wise contributions.
+# 本教程演示如何将 ORCA 与 ORCA Python 接口（OPI）配合使用，通过**[局域能量分解（LED）](https://doi.org/10.1021/acs.jctc.6b00523)**分析，分解非共价主客体复合物的相互作用能。CovaLED 还允许将子体系划分为由共价键连接的片段。此外，还进行**[片段对 LED（fp-LED）](https://doi.org/10.1002/anie.202421922)**后处理，将相互作用能完全分解为两两片段间的贡献。
 # 
-# In this notebook we will:
-# 1.  Import the required python dependencies.
-# 2.  Define a working directory.
-# 3.  Set up a host&ndash;guest input structure for our calculation.
-# 4.  Run an LED calculation for the complete system.
-# 5.  Assign a host and a guest automatically.
-# 6.  Run the calculations for host and guest.
-# 7.  Perform post-processing for the standard LED.
-# 8.  Perform post-processing for the fp-LED.
-# 9.  Gather the results in pandas dataframes.
-# 10. Visualize the LED interactions with heatmaps.
-# 11. Interpretation of the results.
+# 本 Notebook 将：
+# 1. 导入所需 Python 依赖。
+# 2. 定义工作目录。
+# 3. 设置主客体输入结构。
+# 4. 对完整体系运行 LED 计算。
+# 5. 自动划分主体与客体。
+# 6. 运行主体与客体计算。
+# 7. 对标准 LED 进行后处理。
+# 8. 对 fp-LED 进行后处理。
+# 9. 将结果整理为 pandas DataFrame。
+# 10. 使用热图可视化 LED 相互作用。
+# 11. 解释结果。
 
-# ## Step 1: Import Dependencies
+# ## 步骤 1：导入依赖
 # 
-# We start by importing the modules needed for:
-# - Interfacing with ORCA input/output
-# - Numerical calculations and data handling
-# - Plotting results
+# 首先导入以下用途所需的模块：
+# - 访问 ORCA 输入与输出
+# - 数值计算与数据处理
+# - 绘制结果
 # 
-# > **Note:** We additionally import modules for visualization/plotting like `py3Dmol`. For this, it might be necessary to install `py3Dmol` into your OPI `venv` (e.g., by activating the `.venv` and using `uv pip install py3Dmol`).
+# > **注意：** 我们还导入 `py3Dmol` 等可视化与绘图模块。可能需要将 `py3Dmol` 安装到 OPI 的 `venv` 中，例如激活 `.venv` 后运行 `uv pip install py3Dmol`。
 
 # In[1]:
 
@@ -33,48 +33,48 @@
 from pathlib import Path
 import shutil
 
-# > pandas and numpy for data handling
+# > 使用 pandas 和 numpy 处理数据
 import pandas as pd
 import numpy as np
 
-# > OPI imports for performing ORCA calculations and reading output
+# > 导入用于执行 ORCA 计算和读取输出的 OPI 模块
 from opi.core import Calculator
 from opi.output.core import Output
 from opi.input.simple_keywords import BasisSet, Dlpno, \
     Scf, AuxBasisSet, Approximation, Wft
 from opi.input.structures.structure import Structure
 
-# > Imports for plotting results visualization of molecules
+# > 导入用于结果绘图和分子可视化的库
 import matplotlib.pyplot as plt
 import seaborn as sns
 import py3Dmol
 
 
-# ## Step 2: Working Directory and Conversion Factor
+# ## 步骤 2：工作目录与换算系数
 # 
-# We define a subfolder `RUN` in which the actual ORCA calculations will take place. Also, we define a conversion factor, since we want the resulting interaction energies in kcal/mol for better interpretability.
+# 定义子目录 `RUN`，用于执行实际的 ORCA 计算。同时定义换算系数，将所得相互作用能转换为 kcal/mol，以便解释。
 
 # In[ ]:
 
 
-# > Calculation is performed in `RUN`
+# > 在 `RUN` 中执行计算
 working_dir = Path("RUN")
-# > The `working_dir`is automatically (re-)created
+# > 自动创建或重新创建 `working_dir`
 shutil.rmtree(working_dir, ignore_errors=True)
 working_dir.mkdir()
-# > Conversion factor for atomic units to kcal/mol
+# > 原子单位到 kcal/mol 的换算系数
 unit_conversion = 627.509 
 
 
-# ## Step 3: Setup the Input Structure
+# ## 步骤 3：设置输入结构
 # 
-# As an example, we will take a simple ethane dimer. The 3D structure in Cartesian coordinates is defined and visualized:
+# 以简单的乙烷二聚体为例。定义笛卡尔坐标下的三维结构，并将其可视化：
 # 
 
 # In[3]:
 
 
-# > define cartesian coordinates as python string
+# > 将笛卡尔坐标定义为 Python 字符串
 xyz_data = """\
 16
 
@@ -96,76 +96,76 @@ xyz_data = """\
    H   -5.81650657862927     -0.56907193276525     -0.31256550583595\n
 """
 
-# > Visualize the input structure
+# > 可视化输入结构
 view = py3Dmol.view(width=400, height=400)
 view.addModel(xyz_data, 'xyz')
 view.setStyle({}, {'stick': {}, 'sphere': {'scale': 0.3}})
 view.zoomTo()
 view.show()
 
-# > Write the input structure to a file
+# > 将输入结构写入文件
 with open(working_dir / "struc.xyz","w") as f:
     f.write(xyz_data)
-# > Read the structure into object
+# > 将结构读入对象
 structure = Structure.from_xyz(working_dir / "struc.xyz")
 
 
-# ## Step 4: Run CovaLED for the Supramolecular System
+# ## 步骤 4：对超分子体系运行 CovaLED
 # 
-# First, we run an LED calculation with DLPNO-CCSD(T)/def2-SVP for the complete system using `NORMALPNO` and `NORMALSCF` settings. We choose the small basis set and only moderate PNO and SCF settings to keep the computational costs for this notebook small. Note that these settings are usually not sufficient for production runs. The fragments in the CovaLED calculation will automatically be detected by ORCA (each ethane molecule is divided into two CH<sub>3</sub> fragments making four in total), but can also manually be assigned. We define and run three helper functions: `setup_calc`, `run_calc`, and `check_and_parse_output`. 
+# 先对完整体系进行 DLPNO-CCSD(T)/def2-SVP 的 LED 计算，采用 `NORMALPNO` 和 `NORMALSCF` 设置。为降低本 Notebook 的计算成本，选用小基组和适中的 PNO、SCF 设置。注意：这些设置通常不足以满足正式计算的要求。ORCA 会自动检测 CovaLED 计算中的片段，每个乙烷分子分为两个 CH<sub>3</sub> 片段，共四个；也可手动指定。定义并运行三个辅助函数：`setup_calc`、`run_calc` 和 `check_and_parse_output`。
 # 
-# First, we set up the calculation with `setup_calc`:
+# 首先使用 `setup_calc` 设置计算：
 
 # In[4]:
 
 
 def setup_calc(basename : str, working_dir: Path, structure: Structure, ncores: int = 4) -> Calculator:
-    # > Set up a Calculator object, the basename for the ORCA calculation is set to LED
+    # > 设置 Calculator 对象，将 ORCA 计算的基本名称设为 LED
     calc = Calculator(basename=basename, working_dir=working_dir)
-    # > Assign structure to calculator
+    # > 将结构赋给计算器
     calc.structure = structure
 
-    # > Define a simple keyword list for the ORCA calculation
+    # > 定义 ORCA 计算的简单关键词列表
     sk_list = [
-    Wft.DLPNO_CCSD_T, # > Use DLPNO-CCSD(T)
-    BasisSet.DEF2_SVP, # > Use the def2-SVP basis set
-    AuxBasisSet.DEF2_SVP_C, # > Use the def2-svp/c auxiliary basis set
-    AuxBasisSet.DEF2_J, # > Use the def2-svp/j auxiliary basis set
-    Dlpno.NORMALPNO, # > normal PNO settings
-    Scf.NORMALSCF, # > normal SCF settings
-    Approximation.RIJCOSX, # > Use RIJCOSX
-    Dlpno.LED, # > Make energy decomposition
+    Wft.DLPNO_CCSD_T, # > 使用 DLPNO-CCSD(T)
+    BasisSet.DEF2_SVP, # > 使用 def2-SVP 基组
+    AuxBasisSet.DEF2_SVP_C, # > 使用 def2-svp/c 辅助基组
+    AuxBasisSet.DEF2_J, # > 使用 def2-svp/j 辅助基组
+    Dlpno.NORMALPNO, # > Normal PNO 设置
+    Scf.NORMALSCF, # > Normal SCF 设置
+    Approximation.RIJCOSX, # > 使用 RIJCOSX
+    Dlpno.LED, # > 进行能量分解
     ]
 
-    # use simple keywords in calculator
+    # 在计算器中使用简单关键词
     calc.input.add_simple_keywords(*sk_list)
 
-    # > If specific fragments are desired they can be assigned,
-    # otherwise ORCA's autofragmentator will create them.
+    # > 如需指定片段，可在此赋值，
+    # 否则由 ORCA 的自动片段划分程序生成。
     calc.input.add_arbitrary_string("%frag\n STOREFRAGS true\n FragProc  FUNCTIONALGROUPS,EXTEND,CONNECTIVITY\n DOINTERFRAGBONDS true\n end")
 
-    # Define number of CPUs for the calcualtion
-    calc.input.ncores = ncores # > 4 CPUs for this ORCA run
+    # 定义计算使用的 CPU 数量
+    calc.input.ncores = ncores # > 本次 ORCA 计算使用 4 个 CPU
 
     return calc
 
 calc_supersystem = setup_calc("supersystem", working_dir=working_dir, structure=structure)
 
 
-# Then we run the calculation with `run_calc` and obtain the output:
+# 然后使用 `run_calc` 运行计算并获取输出：
 
 # In[5]:
 
 
 def run_calc(calc: Calculator) -> Output:
-    # > Write the ORCA input file
+    # > 写出 ORCA 输入文件
     calc.write_input()
-    # > Run the ORCA calculation
+    # > 运行 ORCA 计算
     print("Running ORCA calculation ...", end="")
     calc.run()
     print("   Done")
 
-    # > Get the output object
+    # > 获取输出对象
     output = calc.get_output()
 
     return output
@@ -173,22 +173,22 @@ def run_calc(calc: Calculator) -> Output:
 output_supersystem = run_calc(calc_supersystem)
 
 
-# The successful calculation has to be checked and parsed, which is done in `check_and_parse_output`:
+# 需要检查计算是否成功并解析输出，这由 `check_and_parse_output` 完成：
 
 # In[6]:
 
 
 def check_and_parse_output(output: Output):
-    # > Check for proper termination of ORCA
+    # > 检查 ORCA 是否正常终止
     status = output.terminated_normally()
     if not status:
-        # > ORCA did not terminate normally
+        # > ORCA 未正常终止
         raise RuntimeError(f"ORCA did not terminate normally, see output file: {output.get_outfile()}")
     else:
-        # > ORCA did terminate normally so we can parse the output
+        # > ORCA 已正常终止，可以解析输出
         output.parse()
 
-    # Now check for convergence of the SCF
+    # 现在检查 SCF 是否收敛
     if output.results_properties.geometries[0].single_point_data.converged:
         print("ORCA terminated normally and the SCF converged")
     else:
@@ -197,44 +197,44 @@ def check_and_parse_output(output: Output):
 check_and_parse_output(output_supersystem)
 
 
-# ## Step 5: Definition of Subsystems
-# Next, we extract the automatic generated fragments and define a host and a guest subsystem. In our example, the host and guest system is one ethane molecule with two fragments each.
+# ## 步骤 5：定义子体系
+# 提取自动生成的片段，定义主体和客体子体系。本例中，主体和客体各为一个含两个片段的乙烷分子。
 
 # In[7]:
 
 
-# > Shortcut to the fragments data
+# > 片段数据的简写变量
 frags = output_supersystem.results_properties.geometries[0].geometry.fragments
-# > Obtain the number of fragments in the led for the suprasystem (4 in our case)
+# > 获取超体系 LED 数据中的片段数量（本例为 4）
 nfrags = int(output_supersystem.results_properties.geometries[0].mdci_led.numoffragments)
 
-# > First fragment of guest
+# > 客体的第一个片段
 ofs_sub = 3
 
-# > Generate a list of atoms in the fragments
+# > 生成片段中的原子列表
 atoms_in_frag = [[] for _ in range(nfrags)]
 for index, value in enumerate(frags):
     frag_id = int(value[0])
-    # > Offset by 1 since internal ORCA counting starts at 0
+    # > ORCA 内部编号从 0 开始，因此偏移 1
     atoms_in_frag[frag_id-1].append(index)
     structure.atoms[index].fragment_id = frag_id
 
-# > Define a list of atoms in the subsystems
+# > 定义子体系中的原子列表
 atoms_in_sub = [] 
-atoms_in_sub.append([atom for frag in atoms_in_frag[:ofs_sub-1] for atom in frag]) # > First subsystem contains the two fragments of first ethane
-atoms_in_sub.append([atom for frag in atoms_in_frag[ofs_sub-1:] for atom in frag]) # > Second subsystem contains the two fragments of second ethane
+atoms_in_sub.append([atom for frag in atoms_in_frag[:ofs_sub-1] for atom in frag]) # > 第一子体系包含第一个乙烷分子的两个片段
+atoms_in_sub.append([atom for frag in atoms_in_frag[ofs_sub-1:] for atom in frag]) # > 第二子体系包含第二个乙烷分子的两个片段
 nsub = len(atoms_in_sub)
 
-# > Define a list of fragments in the subsystems
+# > 定义子体系中的片段列表
 frag_in_sub = [[] for _ in range(nsub)]
 for ifrag in range(nfrags):
     if ifrag < ofs_sub-1: frag_in_sub[0].append(ifrag)
     if ifrag >= ofs_sub-1: frag_in_sub[1].append(ifrag)
 
-# > Define offset for guest subsystem
+# > 定义客体子体系的索引偏移量
 offset = len(frag_in_sub[0])
 
-# > Visualize the fragments 
+# > 可视化片段
 print("Here you can view the fragment IDs:")
 for atom in structure.atoms:
     x, y, z = atom.coordinates.coordinates
@@ -248,57 +248,57 @@ for atom in structure.atoms:
 view.show()
 
 
-# ## Step 6: Run the Host and Guest Calculations
+# ## 步骤 6：运行主体与客体计算
 
 # In[8]:
 
 
 sub_outputs: list[Output] = []
-# > Loop over subsystems, obtain substructures, and perform calculations
+# > 遍历子体系，获取子结构并执行计算
 for i in range(len(atoms_in_sub)):
 
-    # > Prepare calculation for the subsystem 
+    # > 准备子体系计算
     subsystem = i + 1
     sub_structure = calc_supersystem.structure.extract_substructure(atoms_in_sub[i])
     calc_subsystem = setup_calc(f"subsystem_{subsystem}", working_dir, sub_structure)
 
-    # > Visualize the subsystem for which the calculation will run
-    # > First, remove fragment data for visualization
+    # > 可视化即将进行计算的子体系
+    # > 先移除片段数据，以便可视化
     for atom in calc_subsystem.structure.atoms: 
         atom.fragment_id = None
 
-    # > Run the calculation
+    # > 运行计算
     output_sub = run_calc(calc_subsystem)
 
-    # > Check and parse the output
+    # > 检查并解析输出
     check_and_parse_output(output_sub)
 
     sub_outputs.append(output_sub)
 
 
-# ## Step 7: Processing for Standard LED
+# ## 步骤 7：标准 LED 的后处理
 # 
-# Now, we perform the post-processing for the LED.
+# 现在对 LED 进行后处理。
 
 # In[9]:
 
 
-# > Shortcut to the led data for the supersystem
+# > 超体系 LED 数据的简写变量
 led_data = output_supersystem.results_properties.geometries[0].mdci_led
-# > Number of subsystems is two
+# > 子体系数量为两个
 nsub = 2
-# > Number of fragments
+# > 片段数量
 nfrags = int(output_supersystem.results_properties.geometries[0].mdci_led.numoffragments)
 
-# > Get shortcuts to the CCSD(T) energy for the subsystems (host and guest)
+# > 为子体系（主体和客体）的 CCSD(T) 能量创建简写变量
 sub_outputs_energy = []
 sub_outputs_led = []
 for output in sub_outputs:
-    # > energy[0] will be the SCF energy and energy[1] the CCSD(T) energy
+    # > energy[0] 为 SCF 能量，energy[1] 为 CCSD(T) 能量
     sub_outputs_energy.append(output.results_properties.geometries[0].energy[1])
     sub_outputs_led.append(output.results_properties.geometries[0].mdci_led)
 
-# > Process LED data
+# > 处理 LED 数据
 LED_pairwise_Total = {}
 LED_pairwise_Ref = {}
 LED_pairwise_Corr = {}
@@ -306,7 +306,7 @@ LED_pairwise_Ref_Coulomb = {}
 LED_pairwise_Ref_Exch = {}
 LED_pairwise_Corr_Disp = {}
 
-# > First, we collect the results from the suprasystem LED calculation
+# > 首先收集超体系 LED 计算的结果
 for x in range(nfrags):
     for y in range(x + 1):
         pair = (x, y)
@@ -324,14 +324,14 @@ for x in range(nfrags):
             LED_pairwise_Ref_Exch[pair] = E_ref_exch
             LED_pairwise_Corr_Disp[pair] = E_corr_disp
 
-# > Now, we subtract the results from the subsystem LED calculations
+# > 现在减去子体系 LED 计算的结果
 for x in range(nfrags):
     for y in range(x + 1):
         pair = (x, y)
         E_ref = 0.
         E_corr = 0.
         foundPair = False
-        # > Check, if fragments are on subsystem 1
+        # > 检查片段是否属于子体系 1
         if x in frag_in_sub[0] and y in frag_in_sub[0]:
             foundPair = True
             if sub_outputs_led[0]: 
@@ -344,7 +344,7 @@ for x in range(nfrags):
             else:
                 E_ref = sub_outputs_energy[0].refenergy[0][0]
                 E_corr = sub_outputs_energy[0].correnergy[0][0]
-        # > Check, if fragments are on the subsystem 2
+        # > 检查片段是否属于子体系 2
         elif x in frag_in_sub[1] and y in frag_in_sub[1]:
             foundPair = True
             if sub_outputs_led[1]:
@@ -358,7 +358,7 @@ for x in range(nfrags):
                 E_ref = sub_outputs_energy[1].refenergy[0][0]
                 E_corr = sub_outputs_energy[1].correnergy[0][0]
 
-        # > Subtract the calculated data from the subsystems
+        # > 减去子体系的计算数据
         if foundPair:
             LED_pairwise_Ref[pair] -= E_ref
             LED_pairwise_Corr[pair] -= E_corr
@@ -369,9 +369,9 @@ for x in range(nfrags):
                 LED_pairwise_Corr_Disp[pair] -= E_corr_disp
 
 
-# ## Step 8: Processing for fp-CovaLED
+# ## 步骤 8：fp-CovaLED 的后处理
 # 
-# Next, we use the CovaLED results and post-process them to fp-CovaLED results, where the interaction energy is decomposed into only pair-wise terms. We calculate the scaling factors from absolute values for better numerical stability. The scaling is done for the total energies and for the reference energies, while the correlations contributions are obtained from subtracting the reference energies from the total energies.
+# 接下来对 CovaLED 结果进行后处理，得到 fp-CovaLED 结果，将相互作用能完全分解为两两贡献。为改善数值稳定性，根据绝对值计算缩放因子。分别对总能量和参考能量进行缩放，再由总能量减去参考能量，得到相关贡献。
 
 # In[10]:
 
@@ -392,7 +392,7 @@ def fp_analysis_abs():
             denom_Y_Total = 0
             denom_X_Ref = 0
             denom_Y_Ref = 0
-            # > Calculate the denominator of the weights with absolute values
+            # > 使用绝对值计算权重的分母
             for k in range(nfrags):
                 minXK = min(x, k)
                 maxXK = max(x, k)
@@ -416,16 +416,16 @@ def fp_analysis_abs():
             scalingX_Ref = dE_Ref_X_unscaled / denom_X_Ref
             scalingY_Ref = dE_Ref_Y_unscaled / denom_Y_Ref
             scaling_Ref = scalingX_Ref + scalingY_Ref
-            # > Take the absolute values of the interfragment contributions
+            # > 取片段间贡献的绝对值
             E_Total_XY_scaled = scaling_Total * abs(E_Total_XY_unscaled)
             E_Ref_XY_scaled = scaling_Ref * abs(E_Ref_XY_unscaled)
             E_Corr_XY_scaled = E_Total_XY_scaled - E_Ref_XY_scaled
-            # > Calculate Elprep contributions
+            # > 计算 Elprep 贡献
             LED_pairwise_Ref_Elprep[pairXY] = E_Ref_XY_scaled
             LED_pairwise_Corr_Elprep[pairXY] = E_Corr_XY_scaled
             LED_pairwise_Total_Elprep[pairXY] = E_Total_XY_scaled
 
-    # > Add the Elprep contributions
+    # > 加入 Elprep 贡献
     for x in range(nfrags):
         for y in range(x):
             pairXY = (x, y)
@@ -433,7 +433,7 @@ def fp_analysis_abs():
             LED_pairwise_Corr[pairXY] += LED_pairwise_Corr_Elprep[pairXY]
             LED_pairwise_Total[pairXY] += LED_pairwise_Total_Elprep[pairXY]
 
-    # > Set the intra-fragment contributions that were distributed to zero
+    # > 将已分配出去的片段内贡献设为零
     for x in range(nfrags):
         pair = (x,x)
         LED_pairwise_Total[pair] = 0.
@@ -446,35 +446,35 @@ def fp_analysis_abs():
 LED_pairwise_Total_Elprep = {}
 LED_pairwise_Ref_Elprep = {}
 LED_pairwise_Corr_Elprep = {}
-# > Run the actual analysis
+# > 运行实际分析
 fp_analysis_abs()
 
 
-# ## Step 9: Gather the Results in pandas Dataframes
+# ## 步骤 9：将结果汇集到 pandas 数据框
 # 
-# For easier access, we store the results in a dictonary of pandas dataframes.
+# 为方便访问，将结果保存为由 pandas DataFrame 组成的字典。
 
 # In[11]:
 
 
-# > Function for generating pandas dataframes
+# > 生成 pandas 数据框的函数
 def gen_led_frame(led_dict: dict[tuple[int,int], float]) -> pd.DataFrame:
-    # Create a full 2D array filled with NaNs
+    # 创建一个全部填充 NaN 的二维数组
     grid = np.full((nfrags, nfrags), np.nan)
 
-    # > Fill the grid with LED results
+    # > 用 LED 结果填充网格
     for (x, y), value in led_dict.items():
         grid[y, x] = value * unit_conversion
 
-    # > Convert to DataFrame
+    # > 转换为 DataFrame
     df = pd.DataFrame(grid)
-    # > Offset indices by 1 to start counting with 1
+    # > 索引偏移 1，使编号从 1 开始
     df.index += 1
     df.columns += 1
 
     return df
 
-# > Generation of data frames
+# > 生成数据框
 data_frames = {}
 data_frames["LED_Total"] = gen_led_frame(LED_pairwise_Total)
 data_frames["LED_Corr"] = gen_led_frame(LED_pairwise_Corr)
@@ -487,14 +487,14 @@ data_frames["LED_Ref_Elprep"] = gen_led_frame(LED_pairwise_Ref_Elprep)
 data_frames["LED_Corr_Elprep"] = gen_led_frame(LED_pairwise_Corr_Elprep)
 
 
-# ## Step 10: Visualization of the Results in Heatmaps
+# ## 步骤 10：用热图可视化结果
 # 
-# Now we visualize the fp-LED total interaction energy in a heatmap:
+# 使用热图可视化 fp-LED 总相互作用能：
 
 # In[12]:
 
 
-# Function to plot the results in a heatmap
+# 将结果绘制为热图的函数
 def plot_led(name: str, df: pd.DataFrame):
     plt.figure(figsize=(6, 5))
     sns.heatmap(df, annot=True,fmt=".1f", cmap="RdBu", center=0)
@@ -503,20 +503,20 @@ def plot_led(name: str, df: pd.DataFrame):
     plt.ylabel("Fragment Y")
     plt.show()
 
-# > Show the structure with fragment IDs once more
+# > 再次显示带有片段 ID 的结构
 print("Visualization of fragments:")
 view.show()
 
-# > Calculate the total interaction energy between fragment 1 and everything else
+# > 计算片段 1 与其余所有片段之间的总相互作用能
 etot = np.nansum(data_frames["LED_Total"].to_numpy())
 print(f"Total interaction energy is {etot:.1f} kcal/mol")
 
-# > Plot the heatmap
+# > 绘制热图
 plot_led("LED_Total",data_frames["LED_Total"])
 
 
-# ## Step 11: Interpretation of the Results
-# The heatmap shown above visualizes the pair-wise contributions to the interaction energy of fragment 1 and the rest. The overall interaction energy is negative. We can also plot different contributions:
+# ## 步骤 11：结果解读
+# 上面的热图显示片段 1 与其余部分相互作用能的两两贡献。总相互作用能为负。也可绘制不同贡献：
 
 # In[13]:
 
@@ -525,8 +525,9 @@ plot_led("LED_Ref",data_frames["LED_Ref"])
 plot_led("LED_Corr",data_frames["LED_Corr"])
 
 
-# It can be seen that the correlation effects are critical for the overall negative interaction energy.
-# > **Note:** If you are interested in the other contributions you can download this notebook, run it on your computer, and plot the other heatmaps with the functionality provided here.
+# 可以看到，相关效应对于总相互作用能为负至关重要。
+# > **注意：** 如需查看其他贡献，可下载本 Notebook，在本地运行，并使用这里提供的功能绘制其他热图。
 
-# ## Summary
-# The fp-CovaLED scheme was applied to an ethane dimer to showcase how to perform CovaLED calculations with the ORCA python interface (OPI). It is a helpful tool, e.g., for investigating protein&ndash;ligand interactions fragment-resolved. In principle, any structure can also be used with the autofragmentator, but care should be taken that no covalent bonds between the subsystems are broken.
+# ## 小结
+# 将 fp-CovaLED 方案应用于乙烷二聚体，演示如何使用 ORCA Python 接口（OPI）执行 CovaLED 计算。它可用于按片段研究蛋白质与配体相互作用等问题。原则上，自动片段划分器可用于任何结构，但应确保子体系之间没有共价键。
+

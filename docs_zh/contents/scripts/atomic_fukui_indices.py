@@ -1,71 +1,71 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Atomic Fukui Indices
+# # 原子 Fukui 指数
 # 
-# This tutorial demonstrates how atomic Fukui indices are calculated using the ORCA python interfacte (OPI).
+# 本教程演示如何使用 ORCA Python 接口（OPI）计算原子 Fukui 指数。
 # 
-# In this notebook we will:
-# 1. Import the Required Dependencies
-# 2. Define a Working Directory and Prepare Structures
-# 3. Visualize the Initial Molecular Structure
-# 4. Run ORCA Calculations
-# 5. Charge Extraction and Fukui Function Computation
-# 6. 3D Visualization of Fukui Functions
+# 本 Notebook 将：
+# 1. 导入所需依赖。
+# 2. 定义工作目录并准备结构。
+# 3. 可视化初始分子结构。
+# 4. 运行 ORCA 计算。
+# 5. 提取电荷并计算 Fukui 函数。
+# 6. 对 Fukui 函数进行三维可视化。
 
-# ## Step 1: Import Dependencies
+# ## 步骤 1：导入依赖
 # 
-# We start by importing the modules needed for:
-# - Interfacing with ORCA input/output
-# - Numerical calculations and data handling
-# - Plotting results
-# - Handling for directory
+# 首先导入以下用途所需的模块：
+# - 访问 ORCA 输入与输出
+# - 数值计算与数据处理
+# - 绘制结果
+# - 目录管理
 # 
-# > **Note:** We additionally import modules for visualization/plotting like `py3Dmol`. For this, it might be necessary to install `py3Dmol` into your OPI `venv` (e.g., by activating the `.venv` and using `uv pip install py3Dmol`).
+# > **注意：** 我们还导入 `py3Dmol` 等可视化与绘图模块。可能需要将 `py3Dmol` 安装到 OPI 的 `venv` 中，例如激活 `.venv` 后运行 `uv pip install py3Dmol`。
 
 # In[ ]:
 
 
-# > Import pathlib for directory handling
+# > 导入 pathlib，用于目录处理
 from pathlib import Path
 import shutil
 
-# > Import numpy for data handling and numerical operations
+# > 导入 numpy，用于数据处理和数值运算
 import numpy as np
 
-# > OPI imports for performing ORCA calculations and reading output
+# > 导入用于执行 ORCA 计算和读取输出的 OPI 模块
 from opi.core import Calculator
 from opi.output.core import Output
 from opi.input.simple_keywords import BasisSet, Dft, DispersionCorrection
 from opi.input.structures.structure import Structure
 
-# > Import libraries for visualization
+# > 导入可视化库
 import py3Dmol
 from IPython.display import display, HTML
 
 
-# ## Step 2: Define Working directory
+# ## 步骤 2：定义工作目录
 # 
-# All actual calculations will be performed in a subfolder `RUN`.
+# 所有实际计算均在子目录 `RUN` 中执行。
 
 # In[ ]:
 
 
-# > Calculation is performed in `RUN`
+# > 在 `RUN` 中执行计算
 working_dir = Path("RUN")
-# > The `working_dir`is automatically (re-)created
+# > 自动创建或重新创建 `working_dir`
 shutil.rmtree(working_dir, ignore_errors=True)
 working_dir.mkdir()
 
 
-# ## Step 3: Setup an Input Structure
+# ## 步骤 3：设置输入结构
 # 
-# We use formaldehyde as our example molecule. The 3D structure in Cartesian coordinates is defined in XYZ format and visualized.
+# 以甲醛为示例分子。用 XYZ 格式定义笛卡尔坐标下的三维结构，并将其可视化。
 
 # In[3]:
 
 
-# > Define the molecule's Cartesian coordinates in Angstroem as python string 
+# > 将分子以 Angstrom 为单位的笛卡尔坐标定义为 Python 字符串
 xyz_data = """\
 4
 
@@ -75,7 +75,7 @@ H      0.00000    1.85448    0.00000
 H      0.00000    0.00000    0.00000\n
 """
 
-# > Visualize the molecular structure using py3Dmol
+# > 使用 py3Dmol 可视化分子结构
 view = py3Dmol.view(width=500, height=500)
 view.addModel(xyz_data, "xyz")
 view.setStyle({'stick': {'radius': 0.1}, 'sphere': {'scale': 0.2}})
@@ -83,76 +83,76 @@ view.setBackgroundColor('white')
 view.zoomTo()
 view.show()
 
-# > Save the XYZ structure to a file
+# > 将 XYZ 结构保存到文件
 with open(working_dir / "struc.xyz","w") as f:
     f.write(xyz_data)
 
 
-# ## Step 4: ORCA Calculations
+# ## 步骤 4：ORCA 计算
 # 
-# We perform single-point energy calculations for three electronic states of the molecule:
-# - Neutral (default)
-# - Anion (additional electron, charge = -1, multiplicity = 2)
-# - Cation (electron removed, charge = +1, multiplicity = 2)
+# 对分子的三种电子态进行单点能计算：
+# - 中性态（默认）
+# - 阴离子态（增加一个电子，charge = -1，multiplicity = 2）
+# - 阳离子态（移去一个电子，charge = +1，multiplicity = 2）
 
-# The successful calculation has to be checked and parsed, which is done in `check_and_parse_output`:
+# 需要检查计算是否成功并解析输出，这由 `check_and_parse_output` 完成：
 
 # In[4]:
 
 
 def check_and_parse_output(output: Output)-> None:
-    # > Check for proper termination of ORCA
+    # > 检查 ORCA 是否正常终止
     status = output.terminated_normally()
     if not status:
-        # > ORCA did not terminate normally
+        # > ORCA 未正常终止
         raise RuntimeError(f"ORCA did not terminate normally, see output file: {output.get_outfile()}")
     else:
-        # > ORCA did terminate normally so we can parse the output
+        # > ORCA 已正常终止，可以解析输出
         output.parse()
 
-    # Now check for convergence of the SCF
+    # 现在检查 SCF 是否收敛
     if output.results_properties.geometries[0].single_point_data.converged:
         print("ORCA terminated normally and the SCF converged")
     else:
         raise RuntimeError("SCF DID NOT CONVERGE")
 
 
-# We start with the neutral calculation:
+# 先进行中性态计算：
 
 # In[5]:
 
 
-# > Path to structure
+# > 结构文件的路径
 xyz_file = working_dir / "struc.xyz"
 
-# > Create a Calculator object for ORCA input generation and execution
+# > 创建用于生成 ORCA 输入并执行计算的 Calculator 对象
 calc = Calculator(basename="neutral", working_dir=working_dir)
 
-# > Load the molecular structure from XYZ file
+# > 从 XYZ 文件加载分子结构
 structure = Structure.from_xyz(xyz_file)
 calc.structure = structure
 calc.structure.charge = 0
 calc.structure.multiplicity = 1
 
-# > Add calculation keywords
+# > 添加计算关键词
 calc.input.add_simple_keywords(
     Dft.B3LYP,
     BasisSet.DEF2_SVP,
     DispersionCorrection.D3
 )
 
-# > Write ORCA input file and run the calculation
+# > 写出 ORCA 输入文件并运行计算
 calc.write_input()
 print("Running ORCA calculation ...", end="")
 calc.run()
 print("   Done")
 
-# > Get the output object
+# > 获取输出对象
 output_neutral = calc.get_output()
 check_and_parse_output(output_neutral)
 
 
-# Next, the calculation for the anion is performed:
+# 接下来进行阴离子计算：
 
 # In[6]:
 
@@ -175,7 +175,7 @@ output_anion = calc.get_output()
 check_and_parse_output(output_anion)
 
 
-# Finally, the calculation of the cation is performed:
+# 最后进行阳离子计算：
 
 # In[7]:
 
@@ -198,50 +198,50 @@ output_cation = calc.get_output()
 check_and_parse_output(output_cation)
 
 
-# ## Step 5: Charge Extraction and Fukui Function Computation
+# ## 步骤 5：提取电荷并计算 Fukui 函数
 
-# The Fukui function is computed in three common forms:
+# Fukui 函数有三种常用形式：
 # 
-# - f⁺ (nucleophilic attack): ρ(N+1) - ρ(N)
-# - f⁻ (electrophilic attack): ρ(N) - ρ(N-1)
-# - f⁰ (radical attack): ½[ρ(N+1) - ρ(N-1)]
+# - f⁺（亲核进攻）：ρ(N+1) - ρ(N)
+# - f⁻（亲电进攻）：ρ(N) - ρ(N-1)
+# - f⁰（自由基进攻）：½[ρ(N+1) - ρ(N-1)]
 # 
-# Here, we employ Mulliken charges for calculating atomic Fukui indices (see [J. Am. Chem. Soc. 1986, 108, 19, 5708–5711](https://doi.org/10.1021/ja00279a008) for details). Note that employing Mulliken charges instead of populations/densities introduces a minus sign in all equations above.
+# 这里采用 Mulliken 电荷计算原子 Fukui 指数，详见 [J. Am. Chem. Soc. 1986, 108, 19, 5708–5711](https://doi.org/10.1021/ja00279a008)。注意：使用 Mulliken 电荷代替布居或密度时，上述所有公式都需要引入负号。
 
 # In[8]:
 
 
 def compute_fukui_charge(charges1: list[float], charges2: list[float], mode: str) -> list[float]:
-    """Compute the Fukui function from atomic charges."""
+    """根据原子电荷计算 Fukui 函数。"""
     q1 = np.array(charges1)
     q2 = np.array(charges2)
 
-    # > Reverted order due to using charges instead of populations/densities
+    # > 由于使用电荷而非布居或密度，因此颠倒相减顺序
     if mode == 'plus/minus':
         diff_charge = (q2 - q1)
     elif mode == 'zero':
         diff_charge = (q2 - q1) / 2
     return diff_charge.tolist()
 
-# > Extract atomic charges from Mulliken population analysis
+# > 从 Mulliken 布居分析中提取原子电荷
 charges_neutral = [c[0] for c in output_neutral.results_properties.geometries[-1].mulliken_population_analysis[-1].atomiccharges]
 charges_anion = [c[0] for c in output_anion.results_properties.geometries[-1].mulliken_population_analysis[-1].atomiccharges]
 charges_cation = [c[0] for c in output_cation.results_properties.geometries[-1].mulliken_population_analysis[-1].atomiccharges]
 
-# > Compute atomic Fukui indices based on Mulliken charges, note the negative sign
-# > since atomic charges are used instead of the density
+# > 根据 Mulliken 电荷计算原子 Fukui 指数，注意负号
+# > 因为此处使用的是原子电荷，而非密度
 f_plus_charges = compute_fukui_charge(charges1=charges_anion, charges2=charges_neutral, mode='plus/minus')
 f_minus_charges = compute_fukui_charge(charges1=charges_neutral, charges2=charges_cation, mode='plus/minus')
 f_zero_charges = compute_fukui_charge(charges1=charges_anion, charges2=charges_cation, mode='zero')
 
 
-# ## Step 6: 3D Visualization of Fukui Functions
+# ## 步骤 6：Fukui 函数的三维可视化
 
 # In[9]:
 
 
 def read_xyz(xyz_path: str) -> tuple[list[tuple[str, float, float, float]], str]:
-    """Read an XYZ file and return atom info and raw string."""
+    """读取 XYZ 文件，返回原子信息和原始字符串。"""
     with open(xyz_path, "r") as f:
         lines = f.readlines()
     num_atoms = int(lines[0])
@@ -255,7 +255,7 @@ def read_xyz(xyz_path: str) -> tuple[list[tuple[str, float, float, float]], str]
     return coords, "".join(lines)
 
 def create_molecule_view(xyz_file: str, title: str, charges: list[float] = None) -> str:
-    """Generate an interactive 3D molecular visualization using py3Dmol."""
+    """使用 py3Dmol 生成可交互的分子三维视图。"""
     atoms, xyz_str = read_xyz(xyz_file)
     view = py3Dmol.view(width=300, height=300)
     view.addModel(xyz_str, "xyz")
@@ -283,10 +283,10 @@ def create_molecule_view(xyz_file: str, title: str, charges: list[float] = None)
     </div>
         """
 
-# Define XYZ path
+# 定义 XYZ 文件路径
 xyz_path = working_dir / "struc.xyz"
 
-# Generate visualizations
+# 生成可视化结果
 label_views = [
     create_molecule_view(xyz_path, title="Mulliken charges", charges=charges_neutral),
     create_molecule_view(xyz_path, title="F+", charges=f_plus_charges),
@@ -294,7 +294,7 @@ label_views = [
     create_molecule_view(xyz_path, title="F0", charges=f_zero_charges),
 ]
 
-# Display label views in 2x2 grid
+# 以 2x2 网格显示带标签的视图
 label_html = f"""
 <h3>Atomic Fukui Indices (Labels)</h3>
 <div style='display: flex; flex-wrap: wrap; justify-content: left; gap: 10px;'>
@@ -305,8 +305,9 @@ label_html = f"""
 display(HTML(label_html))
 
 
-# The Fukui indices suggest that a nucleophilic attack would occur at the carbon atom, an electrophilic attack would occur at the oxygen atom, and a radical attack would also occur at the oxygen atom.
+# Fukui 指数表明，亲核进攻倾向于发生在碳原子上，亲电进攻倾向于发生在氧原子上，自由基进攻也倾向于发生在氧原子上。
 
-# ## Summary
+# ## 小结
 # 
-# In this notebook, we calculated and visualized atomic fukui indices based on Mulliken charges with the ORCA Python Interface (OPI). Other charge schemes are available (Loewdin, Mayer) and could be used as well.
+# 本 Notebook 使用 ORCA Python 接口（OPI），基于 Mulliken 电荷计算并可视化原子 Fukui 指数。也可以使用其他电荷方案，如 Loewdin、Mayer。
+

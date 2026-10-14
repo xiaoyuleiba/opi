@@ -1,70 +1,70 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Calculation of an IR Spectrum
+# # 计算红外光谱
 # 
-# This tutorial demonstrates the calculation of an IR spectrum using the ORCA python interface (OPI).
+# 本教程演示如何使用 ORCA Python 接口（OPI）计算红外光谱。
 # 
-# In this notebook we will:
-# 1.  Import the required Python dependencies
-# 2.  Define a working directory
-# 3.  Set up an input structure for our calculation
-# 4.  Perform a frequency calculation in the gas-phase
-# 5.  Parse the results and plot it
+# 本 Notebook 将：
+# 1. 导入所需 Python 依赖。
+# 2. 定义工作目录。
+# 3. 设置计算的输入结构。
+# 4. 执行气相频率计算。
+# 5. 解析结果并绘图。
 
-# ## Step 1: Import Dependencies
+# ## 步骤 1：导入依赖
 # 
-# We start by importing the modules needed for:
-# - Interfacing with ORCA input/output
-# - Numerical calculations and data handling
-# - Plotting results
+# 首先导入以下用途所需的模块：
+# - 访问 ORCA 输入与输出
+# - 数值计算与数据处理
+# - 绘制结果
 # 
-# > **Note:** We additionally import modules for visualization/plotting like `py3Dmol`. For this, it might be necessary to install `py3Dmol` into your OPI `venv` (e.g., by activating the `.venv` and using `uv pip install py3Dmol`).
+# > **注意：** 我们还导入 `py3Dmol` 等可视化与绘图模块。可能需要将 `py3Dmol` 安装到 OPI 的 `venv` 中，例如激活 `.venv` 后运行 `uv pip install py3Dmol`。
 
 # In[1]:
 
 
-# > Import pathlib for directory handling
+# > 导入 pathlib，用于目录处理
 from pathlib import Path
 import shutil
 
-# > Import numpy for data handling and numerical operations
+# > 导入 numpy，用于数据处理和数值运算
 import numpy as np
 
-# > OPI imports for performing ORCA calculations and reading output
+# > 导入用于执行 ORCA 计算和读取输出的 OPI 模块
 from opi.core import Calculator
 from opi.input.simple_keywords import Dft, Task, BasisSet, Approximation, AuxBasisSet, DispersionCorrection
 from opi.input.structures.structure import Structure
 from opi.input.blocks.block_freq import BlockFreq
 
-# > Import libraries for visualization
+# > 导入可视化库
 import matplotlib.pyplot as plt
 import py3Dmol
 
 
-# ## Step 2: Define Working Directory
+# ## 步骤 2：定义工作目录
 # 
-# All actual calculations will be performed in a subfolder **RUN_09**.
+# 所有实际计算均在子目录 **RUN_09** 中执行。
 
 # In[ ]:
 
 
-# > Calculation is performed in `RUN`
+# > 在 `RUN` 中执行计算
 working_dir = Path("RUN")
-# > The `working_dir`is automatically (re-)created
+# > 自动创建或重新创建 `working_dir`
 shutil.rmtree(working_dir, ignore_errors=True)
 working_dir.mkdir()
 
 
-# ## Step 3: Setup an Input Structure
+# ## 步骤 3：设置输入结构
 # 
-# We use **methanol** as our example molecule. The 3D structure in Cartesian coordinates is defined in XYZ format and visualized.
+# 以**甲醇**为示例分子。用 XYZ 格式定义笛卡尔坐标下的三维结构，并将其可视化。
 # 
 
 # In[3]:
 
 
-# > Define the molecule's Cartesian coordinates in Angstroem as python string 
+# > 将分子以 Angstrom 为单位的笛卡尔坐标定义为 Python 字符串
 xyz_data = """\
 7
 
@@ -77,7 +77,7 @@ H           -1.79280000000000       -0.14680000000000       -0.89380000000000
 H            0.14780000000000       -1.52520000000000       -0.00070000000000\n
 """
 
-# > Visualize the molecular structure using py3Dmol
+# > 使用 py3Dmol 可视化分子结构
 view = py3Dmol.view(width=500, height=500)
 view.addModel(xyz_data, "xyz")
 view.setStyle({'stick': {'radius': 0.1}, 'sphere': {'scale': 0.2}})
@@ -85,56 +85,56 @@ view.setBackgroundColor('white')
 view.zoomTo()
 view.show()
 
-# > Save the XYZ structure to a file
+# > 将 XYZ 结构保存到文件
 with open(working_dir / "struc.xyz","w") as f:
     f.write(xyz_data)
 
 
-# ## Step 4: Calculation in the Gas-Phase
+# ## 步骤 4：气相计算
 # 
 # 
-# We run a geometry optimization and frequency calculation
+# 执行几何优化和频率计算
 
 # In[4]:
 
 
-# > Set up path and create directory for implicit model calculation
+# > 设置隐式模型计算的路径并创建目录
 xyz_file = working_dir / "struc.xyz"
 
-# > Create a Calculator object for ORCA input generation and execution
+# > 创建用于生成 ORCA 输入并执行计算的 Calculator 对象
 calc = Calculator(basename="gas", working_dir=working_dir)
 
-# > Load the molecular structure from XYZ file
+# > 从 XYZ 文件加载分子结构
 structure = Structure.from_xyz(xyz_file)
 calc.structure = structure
 calc.structure.charge = 0
 calc.structure.multiplicity = 1
 
-# > Add calculation keywords
+# > 添加计算关键词
 calc.input.add_simple_keywords(
-    Dft.B3LYP, # > B3LYP method
-    BasisSet.AUG_CC_PVDZ, # > daug-cc-pVDZ basis set
-    AuxBasisSet.DEF2_J, # > auxiliary basis set
-    Approximation.RIJCOSX, # > Use RIJ and COSX
-    DispersionCorrection.D4, # > Use D4 model
-    Task.FREQ # > Do analytical Hessian
+    Dft.B3LYP, # > B3LYP 方法
+    BasisSet.AUG_CC_PVDZ, # > daug-cc-pVDZ 基组
+    AuxBasisSet.DEF2_J, # > 辅助基组
+    Approximation.RIJCOSX, # > 使用 RIJ 和 COSX
+    DispersionCorrection.D4, # > 使用 D4 模型
+    Task.FREQ # > 计算解析 Hessian 矩阵
 )
 
 calc.input.add_blocks(
-    BlockFreq(scalfreq=0.970) # > Optimal scaling factor for B3LYP/aug-cc-pVDZ
+    BlockFreq(scalfreq=0.970) # > B3LYP/aug-cc-pVDZ 的最佳缩放系数
 )
 
-# > Write the ORCA input file
+# > 写出 ORCA 输入文件
 calc.write_input()
-# > Run the ORCA calculation
+# > 运行 ORCA 计算
 print("Running ORCA frequency calculation ...", end="")
 calc.run()
 print("   Done")
 
 
-# ## Step 5: Parse Vibrational Spectrum and Plot it
+# ## 步骤 5：解析振动光谱并绘图
 # 
-# We define a function for extracting the vibrational spectrum from the ORCA and plot it.
+# 定义一个函数，从 ORCA 中提取振动光谱并绘图。
 
 # In[5]:
 
@@ -143,9 +143,9 @@ def plot_vibrational_spectrum(vibrational_spectrum: Path) -> None:
     wave_numbers = []
     intensities = []
 
-    # > While frequencies are available in OPI,
-    # > intensities are currently not.
-    # > Therefore, we grep them manually.
+    # > OPI 已能提供频率，
+    # > 但目前尚不能提供强度。
+    # > 因此在此手动检索并提取。
     with open(vibrational_spectrum) as f:
         in_block = False
         for line in f:
@@ -153,7 +153,7 @@ def plot_vibrational_spectrum(vibrational_spectrum: Path) -> None:
                 in_block = True
                 for _ in range(5):
                     next(f)
-            elif in_block and not line.strip():  # end of block
+            elif in_block and not line.strip():  # 块结束
                 break
             elif in_block:
                 parts = line.split()
@@ -166,7 +166,7 @@ def plot_vibrational_spectrum(vibrational_spectrum: Path) -> None:
                 except ValueError:
                     continue
 
-    # > Generate IR spectrum by creating a zero baseline and populating intensity values
+    # > 创建零基线并填入强度值，以生成红外光谱
     max_wave = int(max(wave_numbers)) + 100
     full_range = np.arange(0, max_wave, 1)
     spectrum = np.zeros_like(full_range, dtype=float)
@@ -176,7 +176,7 @@ def plot_vibrational_spectrum(vibrational_spectrum: Path) -> None:
         if index < len(spectrum):
             spectrum[index] = inten
 
-    # > Plot the vibrational IR spectrum
+    # > 绘制振动红外光谱
     plt.figure(figsize=(10, 5))
     plt.plot(full_range, spectrum)
     plt.xlabel('Wavenumber (cm⁻¹)')
@@ -188,11 +188,12 @@ def plot_vibrational_spectrum(vibrational_spectrum: Path) -> None:
     plt.tight_layout()
     plt.show()
 
-# > Plot vibrational spectrum for implicit solvation result
+# > 绘制隐式溶剂化结果的振动光谱
 spectrum_path = working_dir / "gas.out"
 plot_vibrational_spectrum(spectrum_path)
 
 
-# ## Summary
+# ## 小结
 # 
-# In this notebook we demonstrated how the ORCA Python interface can be employed to calculate the frequencies and intensities required for predicting an IR spectrum.
+# 本 Notebook 演示如何使用 ORCA Python 接口计算预测红外光谱所需的频率与强度。
+

@@ -8,44 +8,44 @@ from opi.input.simple_keywords import Scf, Wft, BasisSet
 
 
 def check_and_parse_output(output: Output)-> None:
-    # > Check for proper termination of ORCA
+    # > 检查 ORCA 是否正常终止
     status = output.terminated_normally()
     if not status:
-        # > ORCA did not terminate normally
+        # > ORCA 未正常终止
         raise RuntimeError(f"ORCA did not terminate normally, see output file: {output.get_outfile()}")
     else:
-        # > ORCA did terminate normally so we can parse the output
+        # > ORCA 已正常终止，可以解析输出
         output.parse()
 
-    # Now check for convergence of the SCF
+    # 现在检查 SCF 是否收敛
     if not output.results_properties.geometries[0].single_point_data.converged:
         raise RuntimeError("SCF DID NOT CONVERGE")
     
 def extrapolation_ep1(structure: Structure, basename : str = "job", working_dir: Path = Path("RUN"), charge = 0, mult = 1) -> dict[str, Any]:
-    # > Task 1: Small basis (X=2) CCSD(T) calculation
-    # > Create a Calculator object for ORCA input generation and execution
+    # > 任务 1：使用小基组（X=2）的 CCSD(T) 计算
+    # > 创建用于生成 ORCA 输入并执行计算的 Calculator 对象
     calc = Calculator(basename=f"{basename}_X", working_dir=working_dir)
 
     calc.structure = structure
     calc.structure.charge = charge
     calc.structure.multiplicity = mult
 
-    # > Add calculation keywords
+    # > 添加计算关键词
     calc.input.add_simple_keywords(
         Wft.CCSD_T,
         Scf.VERYTIGHTSCF,
         BasisSet.CC_PVDZ
         )
     
-    # > Write the ORCA input file
+    # > 写出 ORCA 输入文件
     calc.write_input()
-    # > Run the ORCA calculation
+    # > 运行 ORCA 计算
     calc.run()
-    # > Get the output object
+    # > 获取输出对象
     output_X = calc.get_output()
     check_and_parse_output(output_X)
 
-    # > Task 2: Medium basis (X=3) CCSD(T) calculation
+    # > 任务 2：使用中等基组（X=3）的 CCSD(T) 计算
     calc = Calculator(basename=f"{basename}_Y", working_dir=working_dir)
     calc.structure = structure
     calc.structure.charge = charge
@@ -60,7 +60,7 @@ def extrapolation_ep1(structure: Structure, basename : str = "job", working_dir:
     output_Y = calc.get_output()
     check_and_parse_output(output_Y)
 
-    alpha = 4.420  # based on F. Neese et al. JCTC, 7,33-43 (2011)
+    alpha = 4.420  # 依据 F. Neese 等人的文献 JCTC, 7,33-43 (2011)
     beta = 2.460
     X = 2
     Y = 3
@@ -100,10 +100,10 @@ def extrapolation_ep1(structure: Structure, basename : str = "job", working_dir:
     return result
 
 if __name__ == "__main__":
-    # > Define a basename for the calculation files
+    # > 定义计算文件的基本名称
     basename = "extrapolate_ep1"
-    # > Create a working directory and XYZ file
-    # > You can replace everything up to the next comment with your own directory or file
+    # > 创建工作目录和 XYZ 文件
+    # > 可将此处至下一条注释之前的内容替换为自己的目录或文件
     working_dir = Path("RUN")
     working_dir.mkdir(exist_ok=True)
 
@@ -118,13 +118,13 @@ if __name__ == "__main__":
     with open(xyz_file, "w") as f:
         f.write(xyz_data)
 
-    # > Load the molecular structure from XYZ file
+    # > 从 XYZ 文件加载分子结构
     structure = Structure.from_xyz(xyz_file)
 
-    # > Run the extrapolation
+    # > 执行外推
     result = extrapolation_ep1(structure, basename, working_dir)
 
-    # > Print the results
+    # > 输出结果
     for method, energies in result.items():
         print(f"\nMethod: {method}")
         for key, value in energies.items():

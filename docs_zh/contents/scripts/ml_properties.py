@@ -1,25 +1,25 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Properties for ML models
+# # 用于机器学习模型的性质
 # 
-# This tutorial demonstrates how to use ORCA together with the ORCA python interface (OPI) to calculate electronic properties relevant for, e.g., training machine-learned interatomic potentials (MLIPs). As an example, we will use the reference level &omega;B97M-V/def2-TZVPD used for generating reliable training data, e.g., for [OMol25](https://arxiv.org/abs/2505.08762). As an exemplary molecule, we use 4-methylpyrazole.
+# 本教程演示如何结合 ORCA 与 ORCA Python 接口（OPI）计算电子性质，例如用于训练机器学习原子间势（MLIP）的性质。示例采用 &omega;B97M-V/def2-TZVPD 参考水平，该水平可用于生成可靠的训练数据，例如 [OMol25](https://arxiv.org/abs/2505.08762)。示例分子为 4-甲基吡唑。
 # 
-# In this notebook we will:
-# 1.  Import the required python dependencies.
-# 2.  Define a working directory.
-# 3.  Set up the input structure.
-# 4.  Define the calculation settings.
-# 5.  Perform the ORCA calculation.
-# 6.  Check for proper termination and convergence.
-# 7.  Process the results.
+# 本 Notebook 将：
+# 1. 导入所需 Python 依赖。
+# 2. 定义工作目录。
+# 3. 设置输入结构。
+# 4. 定义计算设置。
+# 5. 执行 ORCA 计算。
+# 6. 检查正常终止与收敛。
+# 7. 处理结果。
 
-# ## Step 1: Import Dependencies
+# ## 步骤 1：导入依赖
 # 
-# We start by importing the modules needed for:
-# - Interfacing with ORCA input/output
-# - Numerical calculations and data handling
-# - Plotting results
+# 首先导入以下用途所需的模块：
+# - 访问 ORCA 输入与输出
+# - 数值计算与数据处理
+# - 绘制结果
 # 
 
 # In[1]:
@@ -28,44 +28,44 @@
 from pathlib import Path
 import shutil
 
-# > pandas and numpy for data handling
+# > 使用 pandas 和 numpy 处理数据
 import pandas as pd
 import numpy as np
 
-# > OPI imports for performing ORCA calculations and reading output
+# > 导入用于执行 ORCA 计算和读取输出的 OPI 模块
 from opi.core import Calculator
 from opi.output.core import Output
 from opi.input.simple_keywords import BasisSet, \
     Scf, AuxBasisSet, Approximation, Dft, Task, OutputControl, Grid
 from opi.input.structures.structure import Structure
 
-# > for visualization of molecules
+# > 用于分子可视化
 import py3Dmol
 
 
-# ## Step 2: Working directory
+# ## 步骤 2：工作目录
 # 
-# We define a subfolder `RUN` in which the actual ORCA calculations will take place.
+# 定义子目录 `RUN`，用于执行实际的 ORCA 计算。
 
 # In[ ]:
 
 
-# > Calculation is performed in `RUN`
+# > 在 `RUN` 中执行计算
 working_dir = Path("RUN")
-# > The `working_dir`is automatically (re-)created
+# > 自动创建或重新创建 `working_dir`
 shutil.rmtree(working_dir, ignore_errors=True)
 working_dir.mkdir()
 
 
-# ## Step 3: Setup the Input Structure
+# ## 步骤 3：设置输入结构
 # 
-# We define the structure with Cartesian coordinates in angstrom and visualize it:
+# 以埃为单位定义结构的笛卡尔坐标，并将其可视化：
 # 
 
 # In[3]:
 
 
-# > define cartesian coordinates in angstrom as python string 
+# > 将以 angstrom 为单位的笛卡尔坐标定义为 Python 字符串
 xyz_data = """\
 12
 
@@ -82,71 +82,71 @@ H -2.6091  0.0584  1.0131
 H -0.0275 -2.1321  0.0003
 H  2.1699  1.2401 -0.0003\n
 """
-# > Visualize the input structure
+# > 可视化输入结构
 view = py3Dmol.view(width=400, height=400)
 view.addModel(xyz_data, 'xyz')
 view.setStyle({}, {'stick': {}, 'sphere': {'scale': 0.3}})
 view.zoomTo()
 view.show()
 
-# > Write the input structure to a file
+# > 将输入结构写入文件
 with open(working_dir / "struc.xyz","w") as f:
     f.write(xyz_data)
-# > Read structure into object
+# > 将结构读入对象
 structure = Structure.from_xyz(working_dir / "struc.xyz")
 
 
-# ## Step 4: Define the Calculation Settings
-# Next, we have to define the settings used in the ORCA calculation. This can be done by defining a calculator and adding simple keywords to it:
+# ## 步骤 4：定义计算设置
+# 接下来定义 ORCA 计算使用的设置。可以创建 calculator 对象，并向其添加简单关键词：
 
 # In[4]:
 
 
 def setup_calc(basename : str, working_dir: Path, structure: Structure, ncores: int = 4) -> Calculator:
-    # > Set up a Calculator object, the basename for the ORCA calculation is set to LED
+    # > 设置 Calculator 对象，将 ORCA 计算的基本名称设为 LED
     calc = Calculator(basename=basename, working_dir=working_dir)
-    # > Assign structure to calculator
+    # > 将结构赋给计算器
     calc.structure = structure
 
-    # define a level of theory: wB97M-V/def2-TZVPPD with simple
+    # 使用简单关键词定义理论水平：wB97M-V/def2-TZVPPD
     sk_list = [
-        Dft.WB97M_V, # > wB97M-V method
-        BasisSet.DEF2_TZVPD, # > def2-TZVPD basis set
-        AuxBasisSet.DEF2_J, # > auxiliary basis set
-        Scf.TIGHTSCF, # > tight SCF
-        Approximation.RIJCOSX, # > Use RIJ and COSX
-        Grid.DEFGRID3, # > Large grid for exchange-correlation and COSX
-        Task.ENGRAD, # > Calculate energy and gradient
-        OutputControl.PRINTGAP, # > Print HOMO-LUMO gap
+        Dft.WB97M_V, # > wB97M-V 方法
+        BasisSet.DEF2_TZVPD, # > def2-TZVPD 基组
+        AuxBasisSet.DEF2_J, # > 辅助基组
+        Scf.TIGHTSCF, # > 使用严格的 SCF 收敛设置
+        Approximation.RIJCOSX, # > 使用 RIJ 和 COSX
+        Grid.DEFGRID3, # > 交换相关和 COSX 使用较密的积分网格
+        Task.ENGRAD, # > 计算能量和梯度
+        OutputControl.PRINTGAP, # > 输出 HOMO-LUMO 能隙
     ]
 
-    # use simple keywords in calculator
+    # 在计算器中使用简单关键词
     calc.input.add_simple_keywords(*sk_list)
 
-    # Define number of CPUs for the calcualtion
-    calc.input.ncores = ncores # > 4 CPUs for this ORCA run
+    # 定义计算使用的 CPU 数量
+    calc.input.ncores = ncores # > 本次 ORCA 计算使用 4 个 CPU
 
     return calc
 
 calc = setup_calc("single_point", working_dir=working_dir, structure=structure)
 
 
-# ## Step 5: Perform the ORCA calculation
+# ## 步骤 5：执行 ORCA 计算
 # 
-# To perform the calculation, we have to write the input in ORCA format first, and then run the job by using the `run()` function of the calculator class. The output of ORCA can be written to the calculator with its `get_output()` function.
+# 先将输入写成 ORCA 格式，再使用 calculator 类的 `run()` 函数运行作业。可通过其 `get_output()` 函数将 ORCA 输出写入 calculator 对象。
 
 # In[5]:
 
 
 def run_calc(calc: Calculator) -> Output:
-    # > Write the ORCA input file
+    # > 写出 ORCA 输入文件
     calc.write_input()
-    # > Run the ORCA calculation
+    # > 运行 ORCA 计算
     print("Running ORCA calculation ...", end="")
     calc.run()
     print("   Done")
 
-    # > Get the output object
+    # > 获取输出对象
     output = calc.get_output()
 
     return output
@@ -154,23 +154,23 @@ def run_calc(calc: Calculator) -> Output:
 output = run_calc(calc)
 
 
-# ## Step 6: Check for Proper Termination and Convergence
-# When performing automated computations, a termination and convergence check should always be included and, when computing larger data sets, failed convergence should be handled. A simple check could look like:
+# ## 步骤 6：检查正常终止与收敛
+# 执行自动化计算时，应始终检查正常终止与收敛；计算较大数据集时，还应处理收敛失败的情况。简单检查示例如下：
 
 # In[6]:
 
 
 def check_and_parse_output(output: Output):
-    # > Check for proper termination of ORCA
+    # > 检查 ORCA 是否正常终止
     status = output.terminated_normally()
     if not status:
-        # > ORCA did not terminate normally
+        # > ORCA 未正常终止
         raise RuntimeError("ORCA did not terminate normally. Please check RUN/single_point.out")
     else:
-        # > ORCA did terminate normally so we can parse the output
+        # > ORCA 已正常终止，可以解析输出
         output.parse()
 
-    # Now check for convergence of the SCF
+    # 现在检查 SCF 是否收敛
     if output.results_properties.geometries[0].single_point_data.converged:
         print("SCF CONVERGED")
     else:
@@ -179,81 +179,81 @@ def check_and_parse_output(output: Output):
 check_and_parse_output(output)
 
 
-# ## Step 7: Process the Results
-# After a successful calculation, we can access the results and store them. For example:
+# ## 步骤 7：处理结果
+# 计算成功后，可以访问并保存结果。例如：
 
 # In[7]:
 
 
 def process_output(output: Output) -> dict:
-    # > Conversion factor for Hartree -> eV
+    # > Hartree 到 eV 的换算系数
     h_to_eV = 27.2114
-    # > Conversion factor for Bohr -> Angstrom
+    # > Bohr 到 Angstrom 的换算系数
     bohr_to_A = 0.529177
 
-    # > Energy and gradient information
-    # > Total energy in eV
+    # > 能量和梯度信息
+    # > 以 eV 为单位的总能量
     Etot = output.results_properties.geometries[0].single_point_data.finalenergy*h_to_eV
-    # > VV10 energy part in eV
-    # > Note that VV10 is self-consistent in gradient computations and thus ecnl is used
+    # > 以 eV 为单位的 VV10 能量部分
+    # > 注意，VV10 在梯度计算中自洽处理，因此使用 ecnl
     E_VV10 = output.results_properties.geometries[0].dft_energy.ecnl*h_to_eV
-    # > Gradient in eV/Bohr (list of size n_atoms containing one list per atom containing three entries)
+    # > 以 eV/Bohr 为单位的梯度（长度为 n_atoms 的列表，每个原子对应一个含三个元素的列表）
     Grad = output.results_properties.geometries[0].nuclear_gradient[0].grad
     Grad = [[x * (h_to_eV/bohr_to_A) for x in nuc_grad] for nuc_grad in Grad]
 
-    # > General information
-    # > Charge of molecule (float value)
+    # > 一般信息
+    # > 分子电荷（浮点数）
     tot_chrg = output.results_properties.calculation_info.charge
-    # > Spin of molecule (float value)
+    # > 分子自旋（浮点数）
     tot_spin = output.results_properties.calculation_info.mult
-    # > Number of atoms (float value)
+    # > 原子数（浮点数）
     n_at = output.results_properties.calculation_info.numofatoms
-    # > Number of electrons (float value)
+    # > 电子数（浮点数）
     n_el = output.results_properties.calculation_info.numofelectrons
-    # > Number of basis functions (float value)
+    # > 基函数数目（浮点数）
     n_bf = output.results_properties.calculation_info.numofbasisfuncts
-    # > Number of alpha electrons (float value)
+    # > alpha 电子数（浮点数）
     n_el_alp = output.results_properties.geometries[0].dft_energy.nalphael
-    # > Number of beta electrons (float value)
+    # > beta 电子数（浮点数）
     n_el_beta = output.results_properties.geometries[0].dft_energy.nbetael
 
-    # > Population analysis
-    # > Loewdin charges (list of size n_atoms containing lists with 3 entries)
+    # > 布居分析
+    # > Loewdin 电荷（长度为 n_atoms 的列表，其中每项为含 3 个元素的列表）
     chrgs_lowedin = output.results_properties.geometries[0].loewdin_population_analysis[0].atomiccharges
-    # > Mulliken charges (list of size n_atoms containing lists with 3 entries)
+    # > Mulliken 电荷（长度为 n_atoms 的列表，其中每项为含 3 个元素的列表）
     chrgs_mulliken = output.results_properties.geometries[0].mulliken_population_analysis[0].atomiccharges
-    # > Mayer bond order (list of size of the number of bonds)
+    # > Mayer 键级（列表长度等于键的数量）
     bond_order = output.results_properties.geometries[0].mayer_population_analysis[0].bondorders
-    # > Mayer's total valence (list of size n_atoms)
+    # > Mayer 总价（长度为 n_atoms 的列表）
     va_mayer = output.results_properties.geometries[0].mayer_population_analysis[0].va
 
-    # > Dipole moments
-    # > Total dipole moments (list with 3 entries: x, y, z)
+    # > 偶极矩
+    # > 总偶极矩（包含 x、y、z 三个分量的列表）
     dip_tot = output.results_properties.geometries[0].dipole_moment[0].dipoletotal
-    # > Magnitude of dipole (float value)
+    # > 偶极矩大小（浮点数）
     dip_mag = output.results_properties.geometries[0].dipole_moment[0].dipolemagnitude
-    # > Electronic dipole contributions (list with 3 entries: x, y, z)
+    # > 电子偶极矩贡献（包含 x、y、z 三个分量的列表）
     dip_el = output.results_properties.geometries[0].dipole_moment[0].dipoleeleccontrib
-    # > Nuclear dipole contributions (list with 3 entries: x, y, z)
+    # > 原子核偶极矩贡献（包含 x、y、z 三个分量的列表）
     dip_nu = output.results_properties.geometries[0].dipole_moment[0].dipolenuccontrib
 
-    # > MO handling
-    mos = output.results_gbw.molecule.molecularorbitals.mos # > saves a list of MOs with size n_atoms
+    # > 分子轨道处理
+    mos = output.results_gbw.molecule.molecularorbitals.mos # > 保存一个长度为 n_atoms 的分子轨道列表
     mo_energies = []
     mo_occupancy = []
     for mo in mos:
-        mo_energies.append(mo.orbitalenergy) # > Extract the MO energies
-        mo_occupancy.append(mo.occupancy) # > Extract the occupation numbers
-    mo_energies = np.array(mo_energies) # > Make float list
-    mo_occupancy = np.array(mo_occupancy) # > Make float list
+        mo_energies.append(mo.orbitalenergy) # > 提取分子轨道能量
+        mo_occupancy.append(mo.occupancy) # > 提取占据数
+    mo_energies = np.array(mo_energies) # > 转换为浮点数列表
+    mo_occupancy = np.array(mo_occupancy) # > 转换为浮点数列表
     if np.all(np.isin(mo_occupancy, [1.0, 0.0])):
         print("Unrestricted calculation detected.")
     elif np.all(np.isin(mo_occupancy, [2.0, 0.0])):
         print("Restricted calculation detected.")
 
-    HOMO_energy = np.max(mo_energies[(mo_occupancy == 1.0) | (mo_occupancy == 2.0)]) # > Detect HOMO energy
+    HOMO_energy = np.max(mo_energies[(mo_occupancy == 1.0) | (mo_occupancy == 2.0)]) # > 确定 HOMO 能量
     HOMO_energy = HOMO_energy * h_to_eV
-    LUMO_energy = np.min(mo_energies[mo_occupancy == 0.0]) # > Detect LUMO energy
+    LUMO_energy = np.min(mo_energies[mo_occupancy == 0.0]) # > 确定 LUMO 能量
     LUMO_energy = LUMO_energy * h_to_eV
 
     summary_data = {
@@ -277,11 +277,12 @@ def process_output(output: Output) -> dict:
 summary_data = process_output(output)
 
 
-# In the following, the resulting values are shown with pandas:
+# 下面使用 pandas 显示所得数值：
 
 # In[8]:
 
 
 df_summary = pd.DataFrame(summary_data, index=[""])
 df_summary.T
+
 

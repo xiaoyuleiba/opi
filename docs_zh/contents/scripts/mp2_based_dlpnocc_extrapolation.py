@@ -16,35 +16,35 @@ from opi.input.blocks import BlockMdci, BlockMp2
 
 def run_mp2_based_dlpnocc_extrapolation(structure: Structure, wd: Path = Path("RUN")):
     """
-    Perform the MP2-based correction scheme to approach the limit of a complete pair natural orbitals space in
-    DLPNO-CCSD(T) calculations according to J. Chem. Theory Comput. 2023, 19, 13, 4023–4032
+    采用基于 MP2 的校正方案，使 DLPNO-CCSD(T) 计算趋近完整对自然轨道空间的极限，
+    依据文献 J. Chem. Theory Comput. 2023, 19, 13, 4023–4032。
     """
 
-    # > HF and CC type
+    # > HF 和 CC 类型
     HF_TYPE = ShellType.UHF
-    CC_TYPE = Wft.DLPNO_CCSD_T1 # or Wft.DLPNO_CCSD_T
+    CC_TYPE = Wft.DLPNO_CCSD_T1 # 或 Wft.DLPNO_CCSD_T
 
-    # > Modify these by hand as desired
+    # > 按需手动修改这些设置
     BASIS_SET = BasisSet.AUG_CC_PVDZ_DK
     REL = RelativisticCorrection.DKH2
     AUX_BASIS = AuxBasisSet.AUTOAUX
-    DLPNO_THRESH = Dlpno.TIGHTPNO  # or Dlpno.NORMALPNO
+    DLPNO_THRESH = Dlpno.TIGHTPNO  # 或 Dlpno.NORMALPNO
 
-    # > MDCI block for DLPNO-CCSD(T) calculation
+    # > 用于 DLPNO-CCSD(T) 计算的 MDCI 块
     cc_mdci_block = BlockMdci()
     cc_mdci_block.usefulllmp2guess = False
     cc_mdci_block.maxiter = 100
 
-    # > MP2 block for DLPNO-MP2 calculation
+    # > 用于 DLPNO-MP2 计算的 MP2 块
     mp2_block = BlockMp2()
 
-    # > Adjust DLPNO-MP2 settings to DLPNO-CCSD(T) settings
-    # > Normal PNO settings
+    # > 使 DLPNO-MP2 设置与 DLPNO-CCSD(T) 设置一致
+    # > Normal PNO 设置
     if DLPNO_THRESH == Dlpno.NORMALPNO:
         mp2_block.tcutpno = 3.33 * 10e-7
         mp2_block.tcutdo = 1 * 10e-2
         mp2_block.tcutmkn = 1 * 10e-3
-    # > Tight PNO Settings
+    # > Tight PNO 设置
     elif DLPNO_THRESH == Dlpno.TIGHTPNO:
         mp2_block.tcutpno = 1 * 10e-7
         mp2_block.tcutdo = 5 * 10e-3
@@ -60,16 +60,16 @@ def run_mp2_based_dlpnocc_extrapolation(structure: Structure, wd: Path = Path("R
     )
     dlpno_cc_calc.input.add_blocks(cc_mdci_block)
 
-    # > Write and run the calculation
+    # > 写出输入文件并运行计算
     status = dlpno_cc_calc.write_and_run()
     if not status:
         raise RuntimeError("DLPNO-CCSD(T) calculation did not terminate normally!")
 
-    # > Get the output
+    # > 获取输出
     dlpno_cc_out = dlpno_cc_calc.get_output()
     dlpno_cc_out.parse()
 
-    # > DLPNO-MP2 Calculation
+    # > DLPNO-MP2 计算
     dlpno_mp2_calc = Calculator(basename="dlpno_mp2", working_dir=wd)
     dlpno_mp2_calc.structure = structure
     dlpno_mp2_calc.input.add_simple_keywords(
@@ -78,16 +78,16 @@ def run_mp2_based_dlpnocc_extrapolation(structure: Structure, wd: Path = Path("R
     dlpno_mp2_calc.input.moinp = wd / "dlpno_ccsdt.gbw"
     dlpno_mp2_calc.input.add_blocks(mp2_block)
 
-    # > Write and run the calculation
+    # > 写出输入文件并运行计算
     status = dlpno_mp2_calc.write_and_run()
     if not status:
         raise RuntimeError("DLPNO-MP2 calculation did not terminate normally!")
 
-    # > Get the output
+    # > 获取输出
     dlpno_mp2_out = dlpno_mp2_calc.get_output()
     dlpno_mp2_out.parse()
 
-    # > RI-MP2 Calculation
+    # > RI-MP2 计算
     ri_mp2_calc = Calculator(basename="ri_mp2", working_dir=wd)
     ri_mp2_calc.structure = structure
     ri_mp2_calc.input.add_simple_keywords(
@@ -95,12 +95,12 @@ def run_mp2_based_dlpnocc_extrapolation(structure: Structure, wd: Path = Path("R
     )
     ri_mp2_calc.input.moinp = wd / "dlpno_ccsdt.gbw"
 
-    # > Write and run the calculation
+    # > 写出输入文件并运行计算
     ri_mp2_calc.write_and_run()
     if not status:
         raise RuntimeError("RI-MP2 calculation did not terminate normally!")
 
-    # > Get the output
+    # > 获取输出
     ri_mp2_out = ri_mp2_calc.get_output()
     ri_mp2_out.parse()
 
@@ -110,7 +110,7 @@ def run_mp2_based_dlpnocc_extrapolation(structure: Structure, wd: Path = Path("R
 
     extrapolated_energy = energy_dlpno_cc + (corr_energy_ri_mp2 - corr_energy_dlpno_mp2)
 
-    # > return final extrapolated energy
+    # > 返回最终外推能量
     return extrapolated_energy
 
 if __name__ == "__main__":
@@ -125,3 +125,4 @@ if __name__ == "__main__":
     wd.mkdir()
     energy = run_mp2_based_dlpnocc_extrapolation(structure, wd)
     print(f"FINAL EXTRAPOLATED ENERGY: {energy}")
+
